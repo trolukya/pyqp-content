@@ -1869,10 +1869,6 @@ export default function CategoryDetail() {
                     <TextCustom style={styles.title} fontSize={24}>
                       {categoryTitle}
                     </TextCustom>
-                    
-                    <TextCustom style={styles.description} fontSize={16}>
-                      No content available for this category yet. Please check back later.
-                    </TextCustom>
                   </View>
                 )}
               </View>

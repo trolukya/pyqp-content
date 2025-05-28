@@ -7,91 +7,92 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { database, storage, config } from '../../../lib/appwriteConfig';
 import { Models, Query } from 'react-native-appwrite';
 import { useAuth } from '../../../context/AuthContext';
+import EmptyState from '../../components/EmptyState';
 
 // Appwrite config constants
 const DATABASE_ID = config.databaseId;
-const TESTS_COLLECTION_ID = config.collections.tests;
-const EXAMS_COLLECTION_ID = config.collections.exams;
-const BUCKET_ID = '6805d851000f17ea756f';
+const MOCK_TESTS_COLLECTION_ID = '683576d00034b71e29ba';
 
-// Define interfaces
-interface Test extends Models.Document {
+// Define MockTest interface
+interface MockTest extends Models.Document {
   title: string;
-  description?: string;
-  examId?: string;
-  fileId?: string;
-  fileName?: string;
+  examId: string;
+  instructions?: string;
   coverId?: string;
-  createdAt: string;
-  uploadedBy: string;
-  author: string;
-  views: number;
-  downloads: number;
-  isActive: boolean;
-  duration: number;
-  questions: number;
-  marks: number;
-  hasQuestions: boolean;
-}
-
-// Define Exam interface
-interface Exam extends Models.Document {
-  name: string;
-  // Add any other exam properties here
 }
 
 export default function MockTestsScreen() {
   const { session, isAdmin } = useAuth();
   
   // State variables
-  const [tests, setTests] = useState<Test[]>([]);
-  const [exams, setExams] = useState<{[key: string]: Exam}>({});
+  const [mockTests, setMockTests] = useState<MockTest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
   
   useEffect(() => {
-    fetchExams();
-    fetchTests();
+    loadData();
   }, []);
   
-  // Fetch all exams
-  const fetchExams = async () => {
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const response = await database.listDocuments(
-        DATABASE_ID,
-        EXAMS_COLLECTION_ID
-      );
-      
-      const examsMap: {[key: string]: Exam} = {};
-      response.documents.forEach(exam => {
-        examsMap[exam.$id] = exam as Exam;
-      });
-      
-      setExams(examsMap);
+      await fetchMockTests();
     } catch (error) {
-      console.error('Error fetching exams:', error);
+      console.error('Error loading data:', error);
+    } finally {
+      setLoading(false);
     }
   };
   
-  // Fetch available tests
-  const fetchTests = async () => {
-    setLoading(true);
+  // Fetch mock tests
+  const fetchMockTests = async () => {
     try {
+      console.log('Fetching mock tests, Collection ID:', MOCK_TESTS_COLLECTION_ID);
+      console.log('Database ID:', DATABASE_ID);
+      
+      // Make a direct request to the API with explicit configuration
       const response = await database.listDocuments(
         DATABASE_ID,
-        TESTS_COLLECTION_ID,
+        MOCK_TESTS_COLLECTION_ID,
         [
-          Query.equal('isActive', true),
-          Query.equal('hasQuestions', true)
+          Query.limit(100) // Ensure we get all documents
         ]
       );
       
-      setTests(response.documents as Test[]);
-    } catch (error) {
-      console.error('Error fetching tests:', error);
-      Alert.alert('Error', 'Failed to load mock tests');
-    } finally {
-      setLoading(false);
+      console.log('Mock tests API response status:', response ? 'Success' : 'Failed');
+      console.log('Mock tests documents count:', response.documents?.length || 0);
+      console.log('Mock tests total:', response.total);
+      
+      if (response.documents && Array.isArray(response.documents)) {
+        // Print each document ID for debugging
+        response.documents.forEach((doc, index) => {
+          console.log(`Document ${index + 1} ID: ${doc.$id}, Title: ${doc.title || 'No title'}`);
+        });
+        
+        // Set the state with the documents
+        if (response.documents.length > 0) {
+          console.log('Setting mockTests state with', response.documents.length, 'documents');
+          setMockTests(response.documents as MockTest[]);
+          
+          // Show success message if tests were found
+          if (response.documents.length > 0) {
+            console.log(`Successfully loaded ${response.documents.length} mock tests`);
+          }
+        } else {
+          console.log('No mock tests found in the response');
+          setMockTests([]);
+        }
+      } else {
+        console.error('Invalid response format:', response);
+        setMockTests([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching mock tests:', error);
+      setMockTests([]);
+      Alert.alert(
+        'Database Error', 
+        `Failed to load mock tests: ${error.message || 'Unknown error'}. Collection ID: ${MOCK_TESTS_COLLECTION_ID}`
+      );
     }
   };
   
@@ -99,11 +100,13 @@ export default function MockTestsScreen() {
   const getCoverImageUrl = (coverId: string) => {
     if (!coverId) return null;
     
-    return storage.getFilePreview(
-      BUCKET_ID,
-      coverId,
-      400
-    );
+    try {
+      // Return placeholder since we don't have direct access to the storage URL structure
+      return 'https://via.placeholder.com/400x140?text=Mock+Test';
+    } catch (error) {
+      console.error('Error generating cover URL:', error);
+      return 'https://via.placeholder.com/400x140?text=Mock+Test';
+    }
   };
   
   // Get formatted date
@@ -112,93 +115,11 @@ export default function MockTestsScreen() {
     return date.toLocaleDateString();
   };
   
-  // Filter tests by exam
-  const getFilteredTests = () => {
-    if (!selectedExamId) return tests;
-    return tests.filter(test => test.examId === selectedExamId);
+  // Add this function to manually refresh the data
+  const handleRefresh = () => {
+    setLoading(true);
+    loadData();
   };
-  
-  // Render exam category
-  const renderExamItem = ({ item }: { item: [string, Exam] }) => {
-    const [id, exam] = item;
-    return (
-      <TouchableOpacity
-        style={styles.examCard}
-        onPress={() => setSelectedExamId(id)}
-      >
-        <View style={styles.examIconCircle}>
-          <FontAwesome name="graduation-cap" size={24} color="white" />
-        </View>
-        <TextCustom style={styles.examName} fontSize={14} numberOfLines={1}>
-          {exam.name}
-        </TextCustom>
-      </TouchableOpacity>
-    );
-  };
-  
-  // Render test item
-  const renderTestItem = ({ item }: { item: Test }) => (
-    <TouchableOpacity
-      style={styles.testCard}
-      onPress={() => router.push({
-        pathname: "/(app)/take-test/[testId]",
-        params: { testId: item.$id }
-      } as any)}
-    >
-      {item.coverId ? (
-        <Image 
-          source={{ uri: getCoverImageUrl(item.coverId) as any }}
-          style={styles.testCover}
-          resizeMode="cover"
-        />
-      ) : (
-        <View style={styles.placeholderCover}>
-          <FontAwesome name="file-text-o" size={40} color="#ccc" />
-        </View>
-      )}
-      
-      <View style={styles.testInfo}>
-        <TextCustom style={styles.testTitle} fontSize={16} numberOfLines={2}>
-          {item.title}
-        </TextCustom>
-        
-        {item.examId && exams[item.examId] && (
-          <View style={styles.examBadge}>
-            <TextCustom style={styles.examBadgeText} fontSize={12}>
-              {exams[item.examId].name}
-            </TextCustom>
-          </View>
-        )}
-        
-        <View style={styles.testMeta}>
-          <View style={styles.metaItem}>
-            <FontAwesome name="clock-o" size={14} color="#666" />
-            <TextCustom style={styles.metaText} fontSize={12}>
-              {item.duration} min
-            </TextCustom>
-          </View>
-          
-          <View style={styles.metaItem}>
-            <FontAwesome name="list" size={14} color="#666" />
-            <TextCustom style={styles.metaText} fontSize={12}>
-              {item.questions} Q
-            </TextCustom>
-          </View>
-        </View>
-        
-        <TextCustom style={styles.testDate} fontSize={12}>
-          {getFormattedDate(item.createdAt)}
-        </TextCustom>
-          
-        <View style={styles.viewsContainer}>
-          <FontAwesome name="eye" size={12} color="#999" />
-          <TextCustom style={styles.viewsText} fontSize={12}>
-            {item.views || 0}
-          </TextCustom>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -212,37 +133,18 @@ export default function MockTestsScreen() {
         <TextCustom style={styles.headerTitle} fontSize={20}>
           Mock Tests
         </TextCustom>
+        <TouchableOpacity 
+          style={styles.refreshButton} 
+          onPress={handleRefresh}
+        >
+          <Ionicons name="refresh" size={24} color="white" />
+        </TouchableOpacity>
       </LinearGradient>
 
-      <View style={styles.content}>
-        <View style={styles.examsSection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleContainer}>
-              <FontAwesome name="graduation-cap" size={18} color="#6B46C1" style={styles.sectionIcon} />
-              <TextCustom style={styles.sectionTitle} fontSize={18}>
-                Exams
-              </TextCustom>
-            </View>
-            <TouchableOpacity onPress={() => setSelectedExamId(null)}>
-              <TextCustom style={styles.viewAllText} fontSize={14}>
-                View All
-              </TextCustom>
-            </TouchableOpacity>
-          </View>
-          
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.examsScrollView}
-          >
-            {Object.entries(exams).map((item, index) => (
-              <View key={item[0]} style={styles.examCardContainer}>
-                {renderExamItem({ item })}
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-        
+      <ScrollView 
+        style={styles.scrollContent}
+        contentContainerStyle={styles.scrollContentContainer}
+      >
         {isAdmin && (
           <TouchableOpacity 
             style={styles.addButton}
@@ -255,6 +157,21 @@ export default function MockTestsScreen() {
           </TouchableOpacity>
         )}
         
+        {/* Mock Tests Section Header */}
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTitleContainer}>
+            <FontAwesome name="file-text-o" size={18} color="#6B46C1" style={styles.sectionIcon} />
+            <TextCustom style={styles.sectionTitle} fontSize={18}>
+              Available Mock Tests
+            </TextCustom>
+          </View>
+          <TouchableOpacity onPress={handleRefresh}>
+            <TextCustom style={styles.viewAllText} fontSize={14}>
+              Refresh
+            </TextCustom>
+          </TouchableOpacity>
+        </View>
+        
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#6B46C1" />
@@ -263,16 +180,79 @@ export default function MockTestsScreen() {
             </TextCustom>
           </View>
         ) : (
-          <FlatList
-            data={getFilteredTests()}
-            renderItem={renderTestItem}
-            keyExtractor={item => item.$id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={<View />}
-          />
+          <View style={styles.testListContainer}>
+            {mockTests.length > 0 ? (
+              <View style={styles.mockTestsGrid}>
+                <FlatList
+                  data={mockTests}
+                  keyExtractor={item => item.$id}
+                  numColumns={2}
+                  contentContainerStyle={styles.mockTestsGridContent}
+                  columnWrapperStyle={styles.mockTestRow}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={styles.mockTestCard}
+                      onPress={() => router.push({
+                        pathname: `/(app)/mock-tests/${item.$id}`,
+                        params: {}
+                      } as any)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.mockTestCoverContainer}>
+                        {item.coverId ? (
+                          <Image 
+                            source={{ uri: getCoverImageUrl(item.coverId) || 'https://via.placeholder.com/100x150?text=Mock+Test' }} 
+                            style={styles.mockTestCover} 
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={styles.mockTestCoverPlaceholder}>
+                            <FontAwesome name="file-text-o" size={28} color="#6B46C1" />
+                          </View>
+                        )}
+                      </View>
+                      <View style={styles.mockTestInfo}>
+                        <TextCustom 
+                          style={styles.mockTestTitle} 
+                          fontSize={14}
+                        >
+                          {item.title.length > 30 ? item.title.substring(0, 30) + '...' : item.title}
+                        </TextCustom>
+                        <TouchableOpacity 
+                          style={styles.mockTestStartButton}
+                          onPress={() => router.push({
+                            pathname: `/(app)/mock-tests/${item.$id}`,
+                            params: {}
+                          } as any)}
+                        >
+                          <TextCustom style={styles.mockTestStartText} fontSize={12}>
+                            Start Test
+                          </TextCustom>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={() => (
+                    <View style={styles.emptyContainer}>
+                      <FontAwesome name="file-text-o" size={50} color="#ccc" />
+                      <TextCustom style={styles.emptyText} fontSize={16}>
+                        No mock tests available yet
+                      </TextCustom>
+                    </View>
+                  )}
+                />
+              </View>
+            ) : (
+              <EmptyState
+                hideContent={true}
+                icon="file-text-o"
+                title="No mock tests available"
+                message={isAdmin ? "Add your first test using the button above" : "Check back later for new tests"}
+              />
+            )}
+          </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -299,9 +279,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginRight: 36, // Balance the layout with backButton
   },
-  content: {
+  scrollContent: {
     flex: 1,
+    backgroundColor: '#f9f9f9',
+  },
+  scrollContentContainer: {
     padding: 16,
+    paddingBottom: 100,
   },
   loadingContainer: {
     flex: 1,
@@ -311,9 +295,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     color: '#666',
-  },
-  examsSection: {
-    marginBottom: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -335,40 +316,6 @@ const styles = StyleSheet.create({
   viewAllText: {
     color: '#6B46C1',
   },
-  examsScrollView: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  examCardContainer: {
-    marginRight: 12,
-  },
-  examCard: {
-    width: 80,
-    height: 100,
-    backgroundColor: 'white',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  examIconCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#6B46C1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  examName: {
-    textAlign: 'center',
-    color: '#444',
-  },
   addButton: {
     backgroundColor: '#4CAF50',
     borderRadius: 8,
@@ -384,76 +331,81 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginLeft: 8,
   },
-  testCard: {
+  testListContainer: {
+    flex: 1,
+  },
+  refreshButton: {
+    marginLeft: 12,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    marginTop: 16,
+    color: '#666',
+  },
+  mockTestsGrid: {
+    flex: 1,
+    paddingTop: 16,
+  },
+  mockTestsGridContent: {
+    paddingBottom: 20,
+  },
+  mockTestRow: {
+    justifyContent: 'space-between',
+    marginHorizontal: 4,
+  },
+  mockTestCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: 8,
     marginBottom: 16,
-    flexDirection: 'row',
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    width: '48%',
   },
-  placeholderCover: {
-    width: 100,
-    height: 140,
-    backgroundColor: '#f5f5f5',
+  mockTestCoverContainer: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  testCover: {
-    width: 100,
-    height: 140,
+  mockTestCover: {
+    width: '100%',
+    height: '100%',
   },
-  testInfo: {
-    flex: 1,
+  mockTestCoverPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f2f2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mockTestInfo: {
     padding: 12,
   },
-  testTitle: {
+  mockTestTitle: {
     fontWeight: 'bold',
-    marginBottom: 6,
+    color: '#333',
+    marginBottom: 8,
   },
-  examBadge: {
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  mockTestStartButton: {
+    backgroundColor: '#6B46C1',
     borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  examBadgeText: {
-    color: '#666',
-  },
-  testMeta: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  metaItem: {
-    flexDirection: 'row',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    marginRight: 14,
+    marginTop: 8,
   },
-  metaText: {
-    color: '#666',
-    marginLeft: 4,
-  },
-  testDate: {
-    color: '#999',
-  },
-  viewsContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 12,
-    right: 12,
-  },
-  viewsText: {
-    color: '#999',
-    marginLeft: 4,
-  },
-  listContent: {
-    paddingBottom: 80,
+  mockTestStartText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 }); 

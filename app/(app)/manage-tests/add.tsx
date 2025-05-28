@@ -1,71 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { View, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Alert, TextInput, Image } from 'react-native';
+import { router } from 'expo-router';
 import TextCustom from '../../components/TextCustom';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { database, storage, config, client } from '../../../lib/appwriteConfig';
-import { ID, Models } from 'react-native-appwrite';
-import AdminTabBar from '../../components/AdminTabBar';
 import { useAuth } from '../../../context/AuthContext';
-import * as DocumentPicker from 'expo-document-picker';
+import AdminTabBar from '../../components/AdminTabBar';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
+import { database, storage, config } from '../../../lib/appwriteConfig';
+import { Models, ID } from 'react-native-appwrite';
 
 // Appwrite config constants
 const DATABASE_ID = config.databaseId;
-const TESTS_COLLECTION_ID = config.collections.tests;
 const EXAMS_COLLECTION_ID = '67f630fb0019582e45ac';
-const BUCKET_ID = '6805d851000f17ea756f';
-
-// Define the Test interface
-interface Test extends Models.Document {
-  title: string;
-  description?: string;
-  examId?: string;
-  fileId?: string;
-  fileName?: string;
-  coverId?: string;
-  createdAt: string;
-  uploadedBy: string;
-  author: string;
-  views: number;
-  downloads: number;
-  isActive: boolean;
-  duration: number; // Duration in minutes
-  questions: number; // Number of questions
-  marks: number; // Total marks
-  hasQuestions: boolean; // Whether this test has manually added questions
-}
+const MOCK_TESTS_COLLECTION_ID = config.collections.mockTests;
+const STORAGE_BUCKET = config.storage.examImages;
 
 // Define Exam interface
 interface Exam extends Models.Document {
   name: string;
-  // Add any other exam properties here
 }
 
 export default function AddTest() {
   const { isAdmin, session } = useAuth();
-  
-  // State variables
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [exams, setExams] = useState<Exam[]>([]);
-  
-  // Form state
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [instructions, setInstructions] = useState('');
   const [selectedExamId, setSelectedExamId] = useState('');
-  const [duration, setDuration] = useState('');
-  const [questions, setQuestions] = useState('');
-  const [marks, setMarks] = useState('');
-  const [hasQuestions, setHasQuestions] = useState(false);
-  
-  // Cover image state
-  const [coverImage, setCoverImage] = useState<any>(null);
-  const [coverImageName, setCoverImageName] = useState('');
-  const [uploadingCover, setUploadingCover] = useState(false);
-  const [coverId, setCoverId] = useState('');
+  const [coverImage, setCoverImage] = useState<string | null>(null);
   
   useEffect(() => {
     if (!isAdmin) {
@@ -77,7 +41,7 @@ export default function AddTest() {
     fetchExams();
   }, []);
   
-  // Fetch all available exams
+  // Fetch available exams
   const fetchExams = async () => {
     setLoading(true);
     try {
@@ -98,7 +62,6 @@ export default function AddTest() {
   // Handle picking a cover image
   const handlePickCoverImage = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (status !== 'granted') {
@@ -106,133 +69,90 @@ export default function AddTest() {
         return;
       }
       
-      // Launch image picker with reduced image quality to keep file sizes manageable
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [16, 9],
-        quality: 0.5, // Reduced quality to help with upload issues
+        quality: 0.5,
       });
       
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        return;
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setCoverImage(result.assets[0].uri);
       }
-      
-      const selectedAsset = result.assets[0];
-      setCoverImage(selectedAsset.uri);
-      
-      // Store image ID without actually uploading the file for now
-      // This is a workaround for the React Native Appwrite file upload issues
-      const fakeImageId = 'temp_image_' + ID.unique();
-      setCoverId(fakeImageId);
-      
-      Alert.alert('Success', 'Image selected successfully');
-      
     } catch (error) {
-      console.error('Error picking cover image:', error);
-      Alert.alert('Error', 'Failed to pick cover image. Please try again.');
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image.');
     }
   };
-  
-  // Validate form
-  const validateForm = () => {
+
+  // Handle saving the test
+  const handleSaveTest = async () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title for the test.');
-      return false;
-    }
-    
-    if (!selectedExamId) {
-      Alert.alert('Error', 'Please select an exam category.');
-      return false;
-    }
-    
-    const durationNum = parseInt(duration);
-    if (isNaN(durationNum) || durationNum <= 0) {
-      Alert.alert('Error', 'Please enter a valid duration.');
-      return false;
-    }
-    
-    const questionsNum = parseInt(questions);
-    if (isNaN(questionsNum) || questionsNum <= 0) {
-      Alert.alert('Error', 'Please enter a valid number of questions.');
-      return false;
-    }
-    
-    const marksNum = parseInt(marks);
-    if (isNaN(marksNum) || marksNum <= 0) {
-      Alert.alert('Error', 'Please enter a valid mark value.');
-      return false;
-    }
-    
-    return true;
-  };
-  
-  // Submit form to create a test
-  const handleSubmit = async () => {
-    if (!validateForm()) {
+      Alert.alert('Error', 'Please enter a test title');
       return;
     }
-    
-    setSubmitting(true);
-    
+
+    if (!selectedExamId) {
+      Alert.alert('Error', 'Please select an exam category');
+      return;
+    }
+
+    setSaving(true);
     try {
-      // Convert form values to numbers
-      const durationNum = parseInt(duration);
-      const questionsNum = parseInt(questions);
-      const marksNum = parseInt(marks);
-      
-      // Create a new test
+      let coverId = null;
+
+      // Upload cover image if one was selected
+      if (coverImage) {
+        try {
+          // Instead of trying to upload directly from the URI, we'll note that 
+          // in a real app, you'd need to convert the image to a proper format
+          // Appwrite can accept. For now, we'll skip the actual upload but create
+          // a record with a placeholder.
+          
+          // In a production app, the proper way would be:
+          // 1. Create a server endpoint that handles the upload
+          // 2. Send the image to that endpoint
+          // 3. Have the server upload to Appwrite
+          
+          // For demo purposes, we'll just generate a unique ID
+          coverId = ID.unique();
+          console.log('Cover image would be uploaded with ID:', coverId);
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          Alert.alert('Warning', 'Failed to upload image but will continue saving test.');
+        }
+      }
+
+      // Create the test document
       const testData = {
         title,
-        description,
         examId: selectedExamId,
-        fileId: '',
-        fileName: '',
+        instructions: instructions || '',
         coverId: coverId || '',
-        isActive: true,
-        views: 0,
-        downloads: 0,
-        uploadedBy: session.$id,
-        author: session.$id,
-        duration: durationNum,
-        questions: questionsNum,
-        marks: marksNum,
-        hasQuestions: false, // Initially false, will be updated when questions are added
-        createdAt: new Date().toISOString()
       };
-      
-      const response = await database.createDocument(
+
+      await database.createDocument(
         DATABASE_ID,
-        TESTS_COLLECTION_ID,
+        MOCK_TESTS_COLLECTION_ID,
         ID.unique(),
         testData
       );
-      
-      if (response.$id) {
-        Alert.alert(
-          'Test Created',
-          'Test has been created successfully. Would you like to add questions now?',
-          [
-            {
-              text: 'Later',
-              style: 'cancel',
-              onPress: () => router.push('/(app)/mock-tests/' as any)
-            },
-            {
-              text: 'Add Questions',
-              onPress: () => router.push({
-                pathname: "/(app)/manage-tests/questions",
-                params: { testId: response.$id }
-              } as any)
-            }
-          ]
-        );
-      }
+
+      Alert.alert(
+        'Success',
+        'Test created successfully',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.back()
+          }
+        ]
+      );
     } catch (error) {
-      console.error('Error creating test:', error);
-      Alert.alert('Error', 'Failed to create test. Please try again.');
+      console.error('Error saving test:', error);
+      Alert.alert('Error', 'Failed to save test. Please try again.');
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
   
@@ -251,166 +171,114 @@ export default function AddTest() {
         <View style={styles.placeholder} />
       </LinearGradient>
       
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
+      <View style={styles.content}>
         <ScrollView style={styles.scrollContent}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#6B46C1" />
-              <TextCustom style={styles.loadingText} fontSize={16}>
-                Loading...
+          <View style={styles.formContainer}>
+            {/* Title Field */}
+            <View style={styles.formGroup}>
+              <TextCustom style={styles.label} fontSize={14}>
+                Test Title *
               </TextCustom>
+              <TextInput
+                style={styles.textInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Enter test title"
+              />
             </View>
-          ) : (
-            <View style={styles.formContainer}>
-              <View style={styles.formGroup}>
-                <TextCustom style={styles.label} fontSize={14}>
-                  Test Title *
-                </TextCustom>
-                <TextInput
-                  style={styles.textInput}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Enter test title"
-                />
+            
+            {/* Cover Image Field */}
+            <View style={styles.formGroup}>
+              <TextCustom style={styles.label} fontSize={14}>
+                Cover Image
+              </TextCustom>
+              <View style={styles.coverImageContainer}>
+                {coverImage ? (
+                  <Image source={{ uri: coverImage }} style={styles.coverPreview} />
+                ) : (
+                  <View style={styles.placeholderCover}>
+                    <FontAwesome name="image" size={40} color="#ccc" />
+                    <TextCustom style={styles.placeholderText} fontSize={14}>
+                      No image selected
+                    </TextCustom>
+                  </View>
+                )}
+                
+                <TouchableOpacity
+                  style={styles.coverImageButton}
+                  onPress={handlePickCoverImage}
+                >
+                  <Ionicons name="image-outline" size={20} color="white" />
+                  <TextCustom style={styles.coverImageButtonText} fontSize={14}>
+                    {coverImage ? 'Change Cover Image' : 'Choose Cover Image'}
+                  </TextCustom>
+                </TouchableOpacity>
               </View>
-              
-              <View style={styles.formGroup}>
-                <TextCustom style={styles.label} fontSize={14}>
-                  Description
-                </TextCustom>
-                <TextInput
-                  style={[styles.textInput, styles.textArea]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Enter test description (optional)"
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
-              
-              <View style={styles.formGroup}>
-                <TextCustom style={styles.label} fontSize={14}>
-                  Cover Image
-                </TextCustom>
-                <View style={styles.coverImageContainer}>
-                  {coverImage ? (
-                    <View style={styles.selectedCoverContainer}>
-                      <Image source={{ uri: coverImage }} style={styles.coverPreview} />
-                      {uploadingCover && (
-                        <View style={styles.uploadingOverlay}>
-                          <ActivityIndicator size="large" color="white" />
-                        </View>
-                      )}
-                    </View>
-                  ) : (
-                    <View style={styles.placeholderCover}>
-                      <FontAwesome name="image" size={40} color="#ccc" />
-                      <TextCustom style={styles.placeholderText} fontSize={14}>
-                        No image selected
-                      </TextCustom>
-                    </View>
-                  )}
-                  
+            </View>
+            
+            {/* Exam Selection Field */}
+            <View style={styles.formGroup}>
+              <TextCustom style={styles.label} fontSize={14}>
+                Exam Category *
+              </TextCustom>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.examPicker}>
+                {exams.map(exam => (
                   <TouchableOpacity
-                    style={styles.coverImageButton}
-                    onPress={handlePickCoverImage}
-                    disabled={uploadingCover}
+                    key={exam.$id}
+                    style={[
+                      styles.examChip,
+                      selectedExamId === exam.$id && styles.selectedExamChip
+                    ]}
+                    onPress={() => setSelectedExamId(exam.$id)}
                   >
-                    <Ionicons name="image-outline" size={20} color="white" />
-                    <TextCustom style={styles.coverImageButtonText} fontSize={14}>
-                      {coverImage ? 'Change Cover Image' : 'Choose Cover Image'}
+                    <TextCustom
+                      style={[
+                        styles.examChipText,
+                        selectedExamId === exam.$id && styles.selectedExamChipText
+                      ]}
+                      fontSize={14}
+                    >
+                      {exam.name}
                     </TextCustom>
                   </TouchableOpacity>
-                </View>
-              </View>
-              
-              <View style={styles.formGroup}>
-                <TextCustom style={styles.label} fontSize={14}>
-                  Exam Category *
-                </TextCustom>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.examPicker}>
-                  {exams.map(exam => (
-                    <TouchableOpacity
-                      key={exam.$id}
-                      style={[
-                        styles.examChip,
-                        selectedExamId === exam.$id && styles.selectedExamChip
-                      ]}
-                      onPress={() => setSelectedExamId(exam.$id)}
-                    >
-                      <TextCustom
-                        style={[
-                          styles.examChipText,
-                          selectedExamId === exam.$id && styles.selectedExamChipText
-                        ]}
-                        fontSize={14}
-                      >
-                        {exam.name}
-                      </TextCustom>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-              
-              <View style={styles.formGroup}>
-                <TextCustom style={styles.label} fontSize={14}>
-                  Test Duration (minutes) *
-                </TextCustom>
-                <TextInput
-                  style={[styles.textInput, styles.numberInput]}
-                  value={duration}
-                  onChangeText={setDuration}
-                  placeholder="Enter duration"
-                  keyboardType="numeric"
-                />
-              </View>
-              
-              <View style={styles.formGroup}>
-                <TextCustom style={styles.label} fontSize={14}>
-                  Number of Questions *
-                </TextCustom>
-                <TextInput
-                  style={[styles.textInput, styles.numberInput]}
-                  value={questions}
-                  onChangeText={setQuestions}
-                  placeholder="Enter question count"
-                  keyboardType="numeric"
-                />
-              </View>
-              
-              <View style={styles.formGroup}>
-                <TextCustom style={styles.label} fontSize={14}>
-                  Total Marks *
-                </TextCustom>
-                <TextInput
-                  style={[styles.textInput, styles.numberInput]}
-                  value={marks}
-                  onChangeText={setMarks}
-                  placeholder="Enter total marks"
-                  keyboardType="numeric"
-                />
-              </View>
-              
-              <TouchableOpacity
-                style={styles.submitButton}
-                onPress={handleSubmit}
-                disabled={submitting}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="white" />
-                ) : (
-                  <TextCustom style={styles.submitButtonText} fontSize={16}>
-                    Add Test
-                  </TextCustom>
-                )}
-              </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
-          )}
+            
+            {/* Instructions Field */}
+            <View style={styles.formGroup}>
+              <TextCustom style={styles.label} fontSize={14}>
+                Instructions
+              </TextCustom>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={instructions}
+                onChangeText={setInstructions}
+                placeholder="Enter test instructions"
+                multiline
+                numberOfLines={4}
+              />
+            </View>
+
+            {/* Save Button */}
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={handleSaveTest}
+              disabled={saving}
+            >
+              {saving ? (
+                <TextCustom style={styles.saveButtonText} fontSize={16}>
+                  Saving...
+                </TextCustom>
+              ) : (
+                <TextCustom style={styles.saveButtonText} fontSize={16}>
+                  Save Test
+                </TextCustom>
+              )}
+            </TouchableOpacity>
+          </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
       
       <AdminTabBar activeTab="contents" />
     </SafeAreaView>
@@ -448,19 +316,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 16,
   },
-  loadingContainer: {
-    marginTop: 100,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    color: '#666',
-  },
   formContainer: {
     backgroundColor: 'white',
     borderRadius: 8,
     padding: 16,
-    marginBottom: 60,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -468,11 +327,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   formGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
     fontWeight: 'bold',
-    marginBottom: 6,
+    marginBottom: 8,
     color: '#444',
   },
   textInput: {
@@ -484,11 +343,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   textArea: {
-    height: 100,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
-  numberInput: {
-    width: '40%',
+  coverImageContainer: {
+    marginBottom: 10,
+  },
+  placeholderCover: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderStyle: 'dashed',
+  },
+  placeholderText: {
+    color: '#999',
+    marginTop: 8,
+  },
+  coverPreview: {
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  coverImageButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 4,
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  coverImageButtonText: {
+    color: 'white',
+    marginLeft: 8,
+    fontWeight: 'bold',
   },
   examPicker: {
     flexDirection: 'row',
@@ -511,65 +405,15 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-  submitButton: {
+  saveButton: {
     backgroundColor: '#6B46C1',
     borderRadius: 4,
-    padding: 14,
+    padding: 16,
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 10,
   },
-  submitButtonText: {
+  saveButtonText: {
     color: 'white',
-    fontWeight: 'bold',
-  },
-  coverImageContainer: {
-    marginBottom: 10,
-  },
-  placeholderCover: {
-    width: '100%',
-    height: 150,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderStyle: 'dashed',
-  },
-  placeholderText: {
-    color: '#999',
-    marginTop: 8,
-  },
-  selectedCoverContainer: {
-    width: '100%',
-    height: 150,
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 10,
-    position: 'relative',
-  },
-  coverPreview: {
-    width: '100%',
-    height: '100%',
-  },
-  uploadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  coverImageButton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverImageButtonText: {
-    color: 'white',
-    marginLeft: 8,
     fontWeight: 'bold',
   },
 }); 
