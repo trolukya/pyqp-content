@@ -140,8 +140,8 @@ export default function MockTestsScreen() {
           <Ionicons name="refresh" size={24} color="white" />
         </TouchableOpacity>
       </LinearGradient>
-
-      <ScrollView 
+          
+          <ScrollView 
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollContentContainer}
       >
@@ -183,9 +183,9 @@ export default function MockTestsScreen() {
           <View style={styles.testListContainer}>
             {mockTests.length > 0 ? (
               <View style={styles.mockTestsGrid}>
-                <FlatList
+          <FlatList
                   data={mockTests}
-                  keyExtractor={item => item.$id}
+            keyExtractor={item => item.$id}
                   numColumns={2}
                   contentContainerStyle={styles.mockTestsGridContent}
                   columnWrapperStyle={styles.mockTestRow}
@@ -204,8 +204,8 @@ export default function MockTestsScreen() {
                             source={{ uri: getCoverImageUrl(item.coverId) || 'https://via.placeholder.com/100x150?text=Mock+Test' }} 
                             style={styles.mockTestCover} 
                             resizeMode="cover"
-                          />
-                        ) : (
+          />
+        ) : (
                           <View style={styles.mockTestCoverPlaceholder}>
                             <FontAwesome name="file-text-o" size={28} color="#6B46C1" />
                           </View>
@@ -233,11 +233,11 @@ export default function MockTestsScreen() {
                     </TouchableOpacity>
                   )}
                   ListEmptyComponent={() => (
-                    <View style={styles.emptyContainer}>
+          <View style={styles.emptyContainer}>
                       <FontAwesome name="file-text-o" size={50} color="#ccc" />
                       <TextCustom style={styles.emptyText} fontSize={16}>
                         No mock tests available yet
-                      </TextCustom>
+            </TextCustom>
                     </View>
                   )}
                 />

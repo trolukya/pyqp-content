@@ -15,7 +15,7 @@ interface EmptyStateProps {
 const EmptyState = ({ 
   icon = 'file-text-o', 
   iconSize = 60, 
-  title, 
+  title,
   message, 
   children,
   hideContent = false

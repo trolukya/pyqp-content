@@ -1069,7 +1069,7 @@ export default function CategoryDetail() {
       const response = await database.listDocuments(
         DATABASE_ID,
         TESTS_COLLECTION_ID,
-        [Query.equal('isActive', true), Query.equal('hasQuestions', true)]
+        [Query.equal('hasQuestions', true)] // Removed isActive filter
       );
       
       const fetchedTests = response.documents as unknown as Test[];
@@ -2664,4 +2664,4 @@ const styles = StyleSheet.create({
     color: '#999',
     marginBottom: 8,
   },
-}); 
+});

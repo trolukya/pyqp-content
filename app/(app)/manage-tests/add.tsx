@@ -84,19 +84,19 @@ export default function AddTest() {
       Alert.alert('Error', 'Failed to pick image.');
     }
   };
-
+  
   // Handle saving the test
   const handleSaveTest = async () => {
     if (!title.trim()) {
       Alert.alert('Error', 'Please enter a test title');
       return;
     }
-
+    
     if (!selectedExamId) {
       Alert.alert('Error', 'Please select an exam category');
       return;
     }
-
+    
     setSaving(true);
     try {
       let coverId = null;
@@ -130,24 +130,24 @@ export default function AddTest() {
         instructions: instructions || '',
         coverId: coverId || '',
       };
-
+      
       await database.createDocument(
         DATABASE_ID,
         MOCK_TESTS_COLLECTION_ID,
         ID.unique(),
         testData
       );
-
-      Alert.alert(
+      
+        Alert.alert(
         'Success',
         'Test created successfully',
-        [
-          {
+          [
+            {
             text: 'OK',
             onPress: () => router.back()
-          }
-        ]
-      );
+            }
+          ]
+        );
     } catch (error) {
       console.error('Error saving test:', error);
       Alert.alert('Error', 'Failed to save test. Please try again.');
@@ -173,93 +173,93 @@ export default function AddTest() {
       
       <View style={styles.content}>
         <ScrollView style={styles.scrollContent}>
-          <View style={styles.formContainer}>
+            <View style={styles.formContainer}>
             {/* Title Field */}
-            <View style={styles.formGroup}>
-              <TextCustom style={styles.label} fontSize={14}>
-                Test Title *
-              </TextCustom>
-              <TextInput
-                style={styles.textInput}
-                value={title}
-                onChangeText={setTitle}
-                placeholder="Enter test title"
-              />
-            </View>
-            
-            {/* Cover Image Field */}
-            <View style={styles.formGroup}>
-              <TextCustom style={styles.label} fontSize={14}>
-                Cover Image
-              </TextCustom>
-              <View style={styles.coverImageContainer}>
-                {coverImage ? (
-                  <Image source={{ uri: coverImage }} style={styles.coverPreview} />
-                ) : (
-                  <View style={styles.placeholderCover}>
-                    <FontAwesome name="image" size={40} color="#ccc" />
-                    <TextCustom style={styles.placeholderText} fontSize={14}>
-                      No image selected
-                    </TextCustom>
-                  </View>
-                )}
-                
-                <TouchableOpacity
-                  style={styles.coverImageButton}
-                  onPress={handlePickCoverImage}
-                >
-                  <Ionicons name="image-outline" size={20} color="white" />
-                  <TextCustom style={styles.coverImageButtonText} fontSize={14}>
-                    {coverImage ? 'Change Cover Image' : 'Choose Cover Image'}
-                  </TextCustom>
-                </TouchableOpacity>
+              <View style={styles.formGroup}>
+                <TextCustom style={styles.label} fontSize={14}>
+                  Test Title *
+                </TextCustom>
+                <TextInput
+                  style={styles.textInput}
+                  value={title}
+                  onChangeText={setTitle}
+                  placeholder="Enter test title"
+                />
               </View>
-            </View>
-            
-            {/* Exam Selection Field */}
-            <View style={styles.formGroup}>
-              <TextCustom style={styles.label} fontSize={14}>
-                Exam Category *
-              </TextCustom>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.examPicker}>
-                {exams.map(exam => (
+              
+            {/* Cover Image Field */}
+              <View style={styles.formGroup}>
+                <TextCustom style={styles.label} fontSize={14}>
+                  Cover Image
+                </TextCustom>
+                <View style={styles.coverImageContainer}>
+                  {coverImage ? (
+                      <Image source={{ uri: coverImage }} style={styles.coverPreview} />
+                  ) : (
+                    <View style={styles.placeholderCover}>
+                      <FontAwesome name="image" size={40} color="#ccc" />
+                      <TextCustom style={styles.placeholderText} fontSize={14}>
+                        No image selected
+                      </TextCustom>
+                    </View>
+                  )}
+                  
                   <TouchableOpacity
-                    key={exam.$id}
-                    style={[
-                      styles.examChip,
-                      selectedExamId === exam.$id && styles.selectedExamChip
-                    ]}
-                    onPress={() => setSelectedExamId(exam.$id)}
+                    style={styles.coverImageButton}
+                    onPress={handlePickCoverImage}
                   >
-                    <TextCustom
-                      style={[
-                        styles.examChipText,
-                        selectedExamId === exam.$id && styles.selectedExamChipText
-                      ]}
-                      fontSize={14}
-                    >
-                      {exam.name}
+                    <Ionicons name="image-outline" size={20} color="white" />
+                    <TextCustom style={styles.coverImageButtonText} fontSize={14}>
+                      {coverImage ? 'Change Cover Image' : 'Choose Cover Image'}
                     </TextCustom>
                   </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-            
+                </View>
+              </View>
+              
+            {/* Exam Selection Field */}
+              <View style={styles.formGroup}>
+                <TextCustom style={styles.label} fontSize={14}>
+                  Exam Category *
+                </TextCustom>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.examPicker}>
+                  {exams.map(exam => (
+                    <TouchableOpacity
+                      key={exam.$id}
+                      style={[
+                        styles.examChip,
+                        selectedExamId === exam.$id && styles.selectedExamChip
+                      ]}
+                      onPress={() => setSelectedExamId(exam.$id)}
+                    >
+                      <TextCustom
+                        style={[
+                          styles.examChipText,
+                          selectedExamId === exam.$id && styles.selectedExamChipText
+                        ]}
+                        fontSize={14}
+                      >
+                        {exam.name}
+                      </TextCustom>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+              
             {/* Instructions Field */}
-            <View style={styles.formGroup}>
-              <TextCustom style={styles.label} fontSize={14}>
+              <View style={styles.formGroup}>
+                <TextCustom style={styles.label} fontSize={14}>
                 Instructions
-              </TextCustom>
-              <TextInput
+                </TextCustom>
+                <TextInput
                 style={[styles.textInput, styles.textArea]}
                 value={instructions}
                 onChangeText={setInstructions}
                 placeholder="Enter test instructions"
                 multiline
                 numberOfLines={4}
-              />
-            </View>
-
+                />
+              </View>
+              
             {/* Save Button */}
             <TouchableOpacity
               style={styles.saveButton}
@@ -273,10 +273,10 @@ export default function AddTest() {
               ) : (
                 <TextCustom style={styles.saveButtonText} fontSize={16}>
                   Save Test
-                </TextCustom>
-              )}
-            </TouchableOpacity>
-          </View>
+                  </TextCustom>
+                )}
+              </TouchableOpacity>
+            </View>
         </ScrollView>
       </View>
       
