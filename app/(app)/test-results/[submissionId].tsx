@@ -338,7 +338,7 @@ export default function TestResultsScreen() {
                 onPress={() => router.push("/(app)")}
               >
                 <TextCustom style={styles.primaryButtonText} fontSize={16}>
-                  Back to Mock Tests
+                  Back to Home
                 </TextCustom>
               </TouchableOpacity>
             </View>

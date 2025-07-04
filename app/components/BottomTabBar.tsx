@@ -84,28 +84,7 @@ const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab }) => {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.tabItem}
-        onPress={() => navigateTo('/(app)/profile')}
-        activeOpacity={0.7}
-      >
-        <View style={styles.tabIconContainer}>
-          <Ionicons
-            name="person"
-          size={24} 
-            color={activeTab === 'profile' ? '#6B46C1' : '#9E9E9E'}
-        />
-          {activeTab === 'profile' && <View style={styles.activeIndicator} />}
-        </View>
-        <Text
-          style={[
-            styles.tabLabel,
-            { color: activeTab === 'profile' ? '#6B46C1' : '#9E9E9E' }
-          ]}
-        >
-          Profile
-        </Text>
-      </TouchableOpacity>
+      {/* Profile button removed */}
     </View>
   );
 };

@@ -124,7 +124,10 @@ export default function Profile() {
               </LinearGradient>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => router.push('/(app)/settings')}
+            >
               <LinearGradient
                 colors={['#2196F3', '#4DABF5']}
                 style={styles.actionGradient}
@@ -291,4 +294,4 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: 'bold',
   },
-}); 
+});

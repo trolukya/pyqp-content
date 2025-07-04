@@ -318,8 +318,8 @@ export default function TestQuestionsScreen() {
         {
           text: 'Finish',
           onPress: () => {
-            // Navigate back to the mock tests screen
-            router.push('/(app)/mock-tests/' as any);
+            // Navigate to the home screen instead of mock tests
+            router.push('/(app)/' as any);
           }
         }
       ]

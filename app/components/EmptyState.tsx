@@ -22,10 +22,6 @@ const EmptyState = ({
 }: EmptyStateProps) => {
   if (hideContent) return null;
   
-  if (title && title.includes("Mock Tests")) {
-    return null;
-  }
-
   return (
     <View style={styles.emptyContainer}>
       <FontAwesome name={icon} size={iconSize} color="#ccc" />

@@ -2,6 +2,8 @@ import { View, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, Ac
 import { useAuth } from "../../context/AuthContext";
 import TextCustom from "../components/TextCustom";
 import BottomTabBar from "../components/BottomTabBar";
+import Header from "../components/Header";
+import DrawerNavigation from "../components/DrawerNavigation";
 import AdminDashboard from "./admin-dashboard";
 import React, { useState, useEffect } from "react";
 import { database, storage } from "../../lib/appwriteConfig";
@@ -66,6 +68,7 @@ export default function Index() {
   const [savedPapers, setSavedPapers] = useState<string[]>([]);
   const [downloadedPapers, setDownloadedPapers] = useState<string[]>([]);
   const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   useEffect(() => {
     fetchExams();
@@ -306,6 +309,10 @@ export default function Index() {
     // Paper clicks will be handled by the individual action buttons
   };
 
+  const toggleDrawer = () => {
+    setIsDrawerOpen(!isDrawerOpen);
+  };
+
   // If the user is an admin, show the admin dashboard
   if (isAdmin) {
     return <AdminDashboard />;
@@ -313,9 +320,11 @@ export default function Index() {
 
   // Otherwise show the user dashboard
   return (
-    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+      <Header onMenuPress={toggleDrawer} />
+      <DrawerNavigation isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      
+      <ScrollView style={styles.scrollView}>
           <LinearGradient
             colors={['#6B46C1', '#4A23A9']}
             style={styles.welcomeCard}
@@ -637,18 +646,21 @@ export default function Index() {
 
         <BottomTabBar activeTab="home" />
       </View>
-    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
   container: {
     flex: 1,
-    paddingBottom: 60, // Space for bottom tab bar
+    paddingBottom: 60, // Space for the bottom tab bar
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#fff',
   },
   welcomeCard: {
     padding: 20,

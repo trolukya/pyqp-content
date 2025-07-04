@@ -8,6 +8,8 @@ import { database, config } from '../../lib/appwriteConfig';
 import { Query, Models } from 'react-native-appwrite';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Header from '../components/Header';
+import DrawerNavigation from '../components/DrawerNavigation';
 
 // Appwrite config constants
 const DATABASE_ID = config.databaseId;
@@ -17,10 +19,18 @@ const PAPERS_COLLECTION_ID = '6805e9460039cc752d42';
 const SIMPLE_PAPERS_COLLECTION_ID = '680b65cd002eb9c1b7a9';
 const NOTIFICATIONS_COLLECTION_ID = '68060b61002f4a16927d';
 const VIDEOS_COLLECTION_ID = '6825ae40002771eaf8c0';
+const BOOKS_COLLECTION_ID = '682710e0002c728483e2'; // E-Books collection
+const NOTES_COLLECTION_ID = '682d9ac0001b401b3121'; // Notes collection
+const QUIZZES_COLLECTION_ID = '6826e04b002731aaf7f4'; // Daily Quiz collection
+const LIVE_CLASSES_COLLECTION_ID = '6805e9460039cc752d42'; // Using a placeholder, replace with actual ID
 
 // AsyncStorage keys
 const READ_NOTIFICATIONS_KEY = 'readNotifications';
 const VIDEO_COUNT_KEY = 'videoLecturesCount';
+const BOOKS_COUNT_KEY = 'eBooksCount';
+const NOTES_COUNT_KEY = 'notesCount';
+const QUIZZES_COUNT_KEY = 'dailyQuizCount';
+const LIVE_CLASSES_COUNT_KEY = 'liveClassesCount';
 
 // Interface for the content category items
 interface ContentCategory {
@@ -41,46 +51,39 @@ const CONTENT_CATEGORIES: ContentCategory[] = [
     count: 0 // Will be dynamically updated
   },
   {
-    id: '3',
-    title: 'Mock Tests',
-    description: 'Practice with mock tests and sample papers',
-    icon: 'edit',
-    count: 78
-  },
-  {
     id: '4',
     title: 'Video Lectures',
     description: 'Recorded lectures and tutorial videos',
     icon: 'video-camera',
-    count: 0 // Updated to start with 0 instead of 32
+    count: 0 // Will be dynamically updated
   },
   {
     id: '5',
     title: 'Live Classes',
     description: 'Interactive live sessions with expert teachers',
     icon: 'play-circle',
-    count: 24
+    count: 0 // Will be dynamically updated
   },
   {
     id: '6',
     title: 'Notes',
     description: 'Comprehensive study notes and summaries',
     icon: 'sticky-note',
-    count: 156
+    count: 0 // Will be dynamically updated
   },
   {
     id: '7',
     title: 'E-Books',
     description: 'Digital books and study materials',
     icon: 'book',
-    count: 85
+    count: 0 // Will be dynamically updated
   },
   {
     id: '8',
     title: 'Daily Quiz',
     description: 'Test your knowledge with daily practice quizzes',
     icon: 'question-circle',
-    count: 30
+    count: 0 // Will be dynamically updated
   }
 ];
 
@@ -95,44 +98,65 @@ export default function Contents() {
   const [loading, setLoading] = useState(true);
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false);
   const [userReadIds, setUserReadIds] = useState<string[]>([]);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     const initializeData = async () => {
-      let hasCachedCount = false;
-      let hasCachedVideoCount = false;
+      let hasCachedData = false;
       
-      // Get cached exam papers count if available
+      // Load cached counts for all categories
       try {
-        const cachedCount = await AsyncStorage.getItem('examPapersCount');
-        if (cachedCount) {
-          const count = parseInt(cachedCount, 10);
-          // Update the Exam Papers category with cached count
-          setCategories(prev => prev.map(category => {
-            if (category.id === '1') {
-              return { ...category, count };
-            }
-            return category;
-          }));
-          hasCachedCount = true;
+        // Exam Papers
+        const cachedPapersCount = await AsyncStorage.getItem('examPapersCount');
+        if (cachedPapersCount) {
+          const count = parseInt(cachedPapersCount, 10);
+          updateCategoryCount('1', count);
+          hasCachedData = true;
         }
 
-        // Get cached video count if available
+        // Video Lectures
         const cachedVideoCount = await AsyncStorage.getItem(VIDEO_COUNT_KEY);
         if (cachedVideoCount) {
           const count = parseInt(cachedVideoCount, 10);
-          // Update the Video Lectures category with cached count
-          setCategories(prev => prev.map(category => {
-            if (category.id === '4') {
-              return { ...category, count };
-            }
-            return category;
-          }));
-          hasCachedVideoCount = true;
+          updateCategoryCount('4', count);
+          hasCachedData = true;
+        }
+        
+        // Live Classes
+        const cachedLiveClassesCount = await AsyncStorage.getItem(LIVE_CLASSES_COUNT_KEY);
+        if (cachedLiveClassesCount) {
+          const count = parseInt(cachedLiveClassesCount, 10);
+          updateCategoryCount('5', count);
+          hasCachedData = true;
+        }
+        
+        // Notes
+        const cachedNotesCount = await AsyncStorage.getItem(NOTES_COUNT_KEY);
+        if (cachedNotesCount) {
+          const count = parseInt(cachedNotesCount, 10);
+          updateCategoryCount('6', count);
+          hasCachedData = true;
+        }
+        
+        // E-Books
+        const cachedBooksCount = await AsyncStorage.getItem(BOOKS_COUNT_KEY);
+        if (cachedBooksCount) {
+          const count = parseInt(cachedBooksCount, 10);
+          updateCategoryCount('7', count);
+          hasCachedData = true;
+        }
+        
+        // Daily Quiz
+        const cachedQuizzesCount = await AsyncStorage.getItem(QUIZZES_COUNT_KEY);
+        if (cachedQuizzesCount) {
+          const count = parseInt(cachedQuizzesCount, 10);
+          updateCategoryCount('8', count);
+          hasCachedData = true;
         }
         
         // If we have cached counts, we can show content immediately
-        if (hasCachedCount || hasCachedVideoCount) {
+        if (hasCachedData) {
           setLoading(false);
         }
       } catch (error) {
@@ -143,12 +167,12 @@ export default function Contents() {
       loadReadNotificationsAndCheck();
       
       // If no cached counts were found, keep loading state true until fresh data is fetched
-      if (!hasCachedCount && !hasCachedVideoCount) {
+      if (!hasCachedData) {
         setLoading(true);
       }
       
-      fetchPaperCounts();
-      fetchVideoCount();
+      // Fetch all category counts
+      fetchAllCounts();
     };
     
     initializeData();
@@ -157,8 +181,7 @@ export default function Contents() {
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active' && pathname === '/(app)/contents') {
         console.log('App has come to the foreground on contents page, refreshing data!');
-        fetchVideoCount();
-        fetchPaperCounts();
+        fetchAllCounts();
       }
     });
     
@@ -166,17 +189,29 @@ export default function Contents() {
       subscription.remove();
     };
   }, [pathname]);
+  
+  // Helper function to update a category count
+  const updateCategoryCount = (categoryId: string, count: number) => {
+    setCategories(prev => prev.map(category => {
+      if (category.id === categoryId) {
+        return { ...category, count };
+      }
+      return category;
+    }));
+  };
+  
+  // Fetch all category counts
+  const fetchAllCounts = async () => {
+    fetchPaperCounts();
+    fetchVideoCount();
+    fetchLiveClassesCount();
+    fetchNotesCount();
+    fetchBooksCount();
+    fetchQuizzesCount();
+  };
 
-  // Fetch paper counts for dynamic display
+  // Update the fetchPaperCounts function
   const fetchPaperCounts = async () => {
-    // If we don't have a cached count, we need to show loading state
-    if (loading) {
-      // Keep loading state true
-    } else {
-      // Otherwise, we're just refreshing the data behind the scenes
-      // No need to show loading indicator again
-    }
-
     try {
       // Fetch total count from original papers collection
       const originalPapersResponse = await database.listDocuments(
@@ -195,15 +230,8 @@ export default function Contents() {
       // Get the total count of papers from both collections
       const totalPapers = originalPapersResponse.total + simplePapersResponse.total;
       
-      // Update the exam papers category count with the actual number
-      const updatedCategories = categories.map(category => {
-        if (category.id === '1') { // Exam Papers category
-          return { ...category, count: totalPapers };
-        }
-        return category;
-      });
-      
-      setCategories(updatedCategories);
+      // Update the exam papers category count
+      updateCategoryCount('1', totalPapers);
       
       // Store the count in AsyncStorage for faster loading next time
       try {
@@ -214,7 +242,6 @@ export default function Contents() {
     } catch (error) {
       console.error('Error fetching paper counts:', error);
     } finally {
-      // Turn off loading in any case
       setLoading(false);
     }
   };
@@ -233,23 +260,107 @@ export default function Contents() {
       const totalVideos = videosResponse.total;
       logWithTime(`Fetched video count: ${totalVideos}`);
       
-      // Update immediately with setState
-      setCategories(prevCategories => 
-        prevCategories.map(category => 
-          category.id === '4' ? {...category, count: totalVideos} : category
-        )
-      );
+      // Update the video lectures category count
+      updateCategoryCount('4', totalVideos);
       
       // Save to AsyncStorage
       await AsyncStorage.setItem(VIDEO_COUNT_KEY, totalVideos.toString());
     } catch (error: any) {
       console.error('Error fetching video count:', error);
       // If error, make sure we still update the UI with 0
-      setCategories(prevCategories => 
-        prevCategories.map(category => 
-          category.id === '4' ? {...category, count: 0} : category
-        )
+      updateCategoryCount('4', 0);
+    }
+  };
+  
+  // Fetch Live Classes count
+  const fetchLiveClassesCount = async () => {
+    try {
+      // Get count from live classes collection
+      const liveClassesResponse = await database.listDocuments(
+        DATABASE_ID,
+        LIVE_CLASSES_COLLECTION_ID,
+        [Query.limit(1)]
       );
+      
+      const totalLiveClasses = liveClassesResponse.total;
+      
+      // Update the live classes category count
+      updateCategoryCount('5', totalLiveClasses);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(LIVE_CLASSES_COUNT_KEY, totalLiveClasses.toString());
+    } catch (error) {
+      console.error('Error fetching live classes count:', error);
+      // For now, keep the default count
+    }
+  };
+  
+  // Fetch Notes count
+  const fetchNotesCount = async () => {
+    try {
+      // Get count from notes collection
+      const notesResponse = await database.listDocuments(
+        DATABASE_ID,
+        NOTES_COLLECTION_ID,
+        [Query.limit(1)]
+      );
+      
+      const totalNotes = notesResponse.total;
+      
+      // Update the notes category count
+      updateCategoryCount('6', totalNotes);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(NOTES_COUNT_KEY, totalNotes.toString());
+    } catch (error) {
+      console.error('Error fetching notes count:', error);
+      // For now, keep the default count
+    }
+  };
+  
+  // Fetch E-Books count
+  const fetchBooksCount = async () => {
+    try {
+      // Get count from books collection
+      const booksResponse = await database.listDocuments(
+        DATABASE_ID,
+        BOOKS_COLLECTION_ID,
+        [Query.limit(1)]
+      );
+      
+      const totalBooks = booksResponse.total;
+      
+      // Update the e-books category count
+      updateCategoryCount('7', totalBooks);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(BOOKS_COUNT_KEY, totalBooks.toString());
+    } catch (error) {
+      console.error('Error fetching books count:', error);
+      // For now, keep the default count
+    }
+  };
+  
+  // Fetch Daily Quiz count
+  const fetchQuizzesCount = async () => {
+    try {
+      // Get count from quizzes collection
+      const quizzesResponse = await database.listDocuments(
+        DATABASE_ID,
+        QUIZZES_COLLECTION_ID,
+        [Query.limit(1)]
+      );
+      
+      const totalQuizzes = quizzesResponse.total;
+      
+      // Update the daily quiz category count
+      updateCategoryCount('8', totalQuizzes);
+      
+      // Save to AsyncStorage
+      await AsyncStorage.setItem(QUIZZES_COUNT_KEY, totalQuizzes.toString());
+    } catch (error) {
+      console.error('Error fetching quizzes count:', error);
+      // For now, keep the default count
     }
   };
 
@@ -270,16 +381,8 @@ export default function Contents() {
     }
   };
 
-  // Handle opening the menu
-  const handleMenuPress = () => {
-    // This would typically open a drawer navigation or a menu modal
-    console.log('Menu button pressed');
-    alert('Menu button pressed');
-  };
-
-  // Handle opening notifications
-  const handleNotificationsPress = () => {
-    router.push('/(app)/notifications');
+  const toggleDrawer = () => {
+    setIsDrawerOpen(!isDrawerOpen);
   };
 
   // Render a category item
@@ -307,9 +410,11 @@ export default function Contents() {
         <TextCustom style={styles.categoryTitle} fontSize={18}>{item.title}</TextCustom>
         <TextCustom style={styles.categoryDescription} fontSize={14}>{item.description}</TextCustom>
         <View style={styles.categoryFooter}>
-          <TextCustom style={styles.categoryCount} fontSize={12}>
-            {item.count} items
-          </TextCustom>
+          {item.id !== '5' && (
+            <TextCustom style={styles.categoryCount} fontSize={12}>
+              {item.count} items
+            </TextCustom>
+          )}
           <FontAwesome name="chevron-right" size={14} color="#9E9E9E" />
         </View>
       </View>
@@ -317,35 +422,14 @@ export default function Contents() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <LinearGradient
-          colors={['#6B46C1', '#4A23A9']}
-          style={styles.header}
-        >
-          <View style={styles.headerLeftSection}>
-            <TouchableOpacity
-              style={styles.menuButton}
-              onPress={handleMenuPress}
-            >
-              <Ionicons name="menu" size={24} color="#fff" />
-            </TouchableOpacity>
-            <TextCustom style={styles.headerTitle} fontSize={22}>PYQP</TextCustom>
-          </View>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={handleNotificationsPress}
-          >
-            <Ionicons name="notifications" size={22} color="#fff" />
-            {hasUnreadNotifications && (
-              <View style={styles.notificationBadge}></View>
-            )}
-          </TouchableOpacity>
-        </LinearGradient>
+      <Header onMenuPress={toggleDrawer} />
+      <DrawerNavigation isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
 
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+        style={styles.scrollView}
         >
           <View style={styles.featuredSection}>
             <TextCustom style={styles.sectionTitle} fontSize={20}>Featured Content</TextCustom>
@@ -390,55 +474,17 @@ export default function Contents() {
 
         <BottomTabBar activeTab="contents" />
       </View>
-    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-  },
-  headerLeftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  menuButton: {
-    marginRight: 12,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  searchButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#FF5A5F',
-    borderWidth: 1,
-    borderColor: '#fff',
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
   scrollContent: {
     paddingBottom: 80, // Space for bottom tab bar

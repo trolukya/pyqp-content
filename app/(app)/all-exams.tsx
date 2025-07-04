@@ -10,9 +10,11 @@ import {
   Text,
   TextInput
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import TextCustom from '../components/TextCustom';
 import BottomTabBar from '../components/BottomTabBar';
+import Header from '../components/Header';
+import DrawerNavigation from '../components/DrawerNavigation';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { database, storage } from '../../lib/appwriteConfig';
 import { Query, Models } from 'react-native-appwrite';
@@ -38,6 +40,11 @@ export default function AllExams() {
   const [loading, setLoading] = useState(true);
   const [iconUrls, setIconUrls] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState('');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  
+  // Get the source category ID from URL params
+  const params = useLocalSearchParams<{ source?: string }>();
+  const sourceCategory = params.source;
 
   useEffect(() => {
     fetchAllExams();
@@ -91,26 +98,44 @@ export default function AllExams() {
   };
 
   const handleExamPress = (examId: string) => {
-    // Navigate to exam details page
-    router.push({
-      pathname: "/exams/[id]",
-      params: { id: examId }
-    });
+    // Check if we came from a specific category
+    if (sourceCategory === '4') {
+      // Navigate back to Video Lectures with the exam filter
+      router.push({
+        pathname: "/(app)/category/[id]",
+        params: { id: '4', examId: examId }
+      });
+    } else if (sourceCategory === '6') {
+      // Navigate back to Notes with the exam filter
+      router.push({
+        pathname: "/(app)/category/[id]",
+        params: { id: '6', examId: examId }
+      });
+    } else if (sourceCategory === '7') {
+      // Navigate back to E-Books with the exam filter
+      router.push({
+        pathname: "/(app)/category/[id]",
+        params: { id: '7', examId: examId }
+      });
+    } else {
+      // Default behavior: navigate to exam details page
+      router.push({
+        pathname: "/exams/[id]",
+        params: { id: examId }
+      });
+    }
+  };
+
+  const toggleDrawer = () => {
+    setIsDrawerOpen(!isDrawerOpen);
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <FontAwesome name="arrow-left" size={20} color="#333" />
-          </TouchableOpacity>
-          <TextCustom style={styles.headerTitle}>All Exams</TextCustom>
-        </View>
-
+      <Header title="All Exams" onMenuPress={toggleDrawer} />
+      <DrawerNavigation isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      
+      <ScrollView style={styles.scrollView}>
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBarContainer}>
@@ -154,7 +179,6 @@ export default function AllExams() {
             </TouchableOpacity>
           </View>
         ) : (
-          <ScrollView style={styles.scrollView}>
             <View style={styles.examsGrid}>
               {filteredExams.map((exam) => (
                 <TouchableOpacity 
@@ -193,45 +217,22 @@ export default function AllExams() {
                 </TouchableOpacity>
               ))}
             </View>
-          </ScrollView>
         )}
+      </ScrollView>
 
         <BottomTabBar activeTab="home" />
       </View>
-    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
   container: {
     flex: 1,
-    paddingBottom: 60, // Space for bottom tab bar
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
     backgroundColor: '#fff',
-  },
-  backButton: {
-    padding: 8,
-    marginRight: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
   },
   scrollView: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#fff',
   },
   examsGrid: {
     flexDirection: 'row',

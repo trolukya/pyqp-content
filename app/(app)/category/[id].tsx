@@ -195,7 +195,8 @@ const EXAM_PAPERS: Paper[] = [
 ];
 
 export default function CategoryDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string, examId?: string }>();
+  const examIdParam = useLocalSearchParams<{ examId?: string }>().examId;
   const { isAdmin } = useAuth(); // Get admin status from auth context
   const [categoryTitle, setCategoryTitle] = useState('Category Details');
   const [papers, setPapers] = useState<Paper[]>([]);
@@ -249,12 +250,6 @@ export default function CategoryDetail() {
       setPapers(EXAM_PAPERS);
       // In a real app, this would be:
       // fetchPapers();
-    } else if (id === '3') {
-      setCategoryTitle('Mock Tests');
-      // Fetch exams for mock tests page
-      fetchExams();
-      // Fetch tests
-      fetchTests();
     } else if (id === '4') {
       setCategoryTitle('Video Lectures');
       // Fetch exams for video lectures page
@@ -294,6 +289,31 @@ export default function CategoryDetail() {
     loadSavedPapers();
     loadDownloadedPapers();
   }, [id]);
+  
+  // Add useEffect to handle examId parameter
+  useEffect(() => {
+    // If we have an examId parameter, set it as the selected exam
+    if (examIdParam && (id === '4' || id === '6' || id === '7')) {
+      setSelectedExamId(examIdParam);
+      
+      // We'll update the title once we have the exam names loaded
+    }
+  }, [examIdParam, id]);
+  
+  // Add useEffect to update the title when exam names are loaded and we have a selected exam
+  useEffect(() => {
+    if (selectedExamId && Object.keys(examNames).length > 0) {
+      const examName = examNames[selectedExamId] || exams.find(e => e.$id === selectedExamId)?.name || 'Selected Exam';
+      
+      if (id === '4') {
+        setCategoryTitle(`${examName} Videos`);
+      } else if (id === '6') {
+        setCategoryTitle(`${examName} Notes`);
+      } else if (id === '7') {
+        setCategoryTitle(`${examName} Books`);
+      }
+    }
+  }, [selectedExamId, examNames, exams, id]);
 
   // Add useEffect to filter tests by examId
   useEffect(() => {
@@ -1098,7 +1118,7 @@ export default function CategoryDetail() {
     }
   };
 
-  // Fix the handler for opening mock tests
+  // Handler for opening tests (kept for compatibility with take-test feature)
   const handleMockTestPress = (testId: string) => {
     router.push({
       pathname: "/(app)/take-test/[testId]",
@@ -1273,8 +1293,8 @@ export default function CategoryDetail() {
         ) : (
           // For other tabs, use regular ScrollView
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {/* Show Exams Section for Mock Tests, Video Lectures, Notes */}
-            {(id === '3' || id === '4' || id === '6') && (
+            {/* Show Exams Section for Video Lectures, Notes */}
+            {(id === '4' || id === '6') && (
               <View style={styles.examsSection}>
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleContainer}>
@@ -1286,7 +1306,10 @@ export default function CategoryDetail() {
                   
                   <TouchableOpacity 
                     style={styles.viewAllButton}
-                    onPress={() => router.push("/(app)/all-exams")}
+                    onPress={() => router.push({
+                      pathname: "/(app)/all-exams",
+                      params: { source: id }
+                    })}
                     activeOpacity={0.7}
                   >
                     <TextCustom style={styles.viewAllText} fontSize={14}>
@@ -1358,29 +1381,6 @@ export default function CategoryDetail() {
                       <FontAwesome name="plus" size={16} color="#fff" />
                       <TextCustom style={styles.addVideoButtonText} fontSize={14}>
                         Add Video Lecture
-                      </TextCustom>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Add Tests button for admins on the Mock Tests page */}
-            {isAdmin && id === '3' && (
-              <View style={styles.addButtonContainer}>
-                <TouchableOpacity 
-                  style={styles.addVideoButton}
-                  onPress={handleAddTests}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={['#28a745', '#1e7e34']}
-                    style={styles.addVideoButtonGradient}
-                  >
-                    <View style={styles.addVideoButtonContent}>
-                      <FontAwesome name="plus" size={16} color="#fff" />
-                      <TextCustom style={styles.addVideoButtonText} fontSize={14}>
-                        Add Tests
                       </TextCustom>
                     </View>
                   </LinearGradient>
@@ -1561,7 +1561,10 @@ export default function CategoryDetail() {
                     
                     <TouchableOpacity 
                       style={styles.viewAllButton}
-                      onPress={() => router.push("/(app)/all-exams")}
+                      onPress={() => router.push({
+                        pathname: "/(app)/all-exams",
+                        params: { source: id }
+                      })}
                       activeOpacity={0.7}
                     >
                       <TextCustom style={styles.viewAllText} fontSize={14}>
