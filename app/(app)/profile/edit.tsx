@@ -52,7 +52,7 @@ export default function EditProfile() {
               <TextCustom style={styles.sectionTitle} fontSize={18}>Account/Profile Settings</TextCustom>
               
               <View style={styles.inputContainer}>
-                <TextCustom style={styles.inputLabel} fontSize={14}>Name</TextCustom>
+                <TextCustom style={styles.inputLabel} fontSize={14}>Change Name</TextCustom>
                 <TextInput
                   style={styles.input}
                   value={name}
@@ -62,7 +62,7 @@ export default function EditProfile() {
               </View>
               
               <View style={styles.inputContainer}>
-                <TextCustom style={styles.inputLabel} fontSize={14}>Email</TextCustom>
+                <TextCustom style={styles.inputLabel} fontSize={14}>Change Email</TextCustom>
                 <TextInput
                   style={styles.input}
                   value={email}

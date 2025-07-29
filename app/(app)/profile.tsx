@@ -82,7 +82,10 @@ export default function Profile() {
           </View>
 
           <View style={styles.actionsSection}>
-            <TouchableOpacity style={styles.actionButton}>
+            <TouchableOpacity
+             style={styles.actionButton}
+             onPress={() => router.push('/(app)/profile/edit')}
+             >
               <LinearGradient
                 colors={['#007BFF', '#3395FF']}
                 style={styles.actionGradient}
